@@ -1,6 +1,13 @@
 rm(list=ls())
-setwd(dirname(rstudioapi::getSourceEditorContext()$path))
+script_arg <- grep("^--file=", commandArgs(trailingOnly = FALSE), value = TRUE)
+if (length(script_arg) == 1L) {
+  setwd(dirname(normalizePath(sub("^--file=", "", script_arg))))
+} else if (requireNamespace("rstudioapi", quietly = TRUE) && rstudioapi::isAvailable()) {
+  setwd(dirname(rstudioapi::getSourceEditorContext()$path))
+}
+rm(script_arg)
 source("helpers.R")
+library(tidyverse)
 library(murphydiagram)
 data(inflation_mean)  # to check if we get same data as in Ehm et al (2016)
 

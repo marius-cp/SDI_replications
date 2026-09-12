@@ -1,3 +1,31 @@
+# Return a valid worker count even when the operating system does not report CPUs.
+replication_worker_count <- function(maximum) {
+  detected <- parallel::detectCores()
+  if (is.na(detected)) {
+    return(1L)
+  }
+  max(1L, min(detected - 1L, maximum))
+}
+
+start_replication_cluster <- function(maximum) {
+  workers <- replication_worker_count(maximum)
+  if (workers == 1L) {
+    foreach::registerDoSEQ()
+    return(NULL)
+  }
+
+  cluster <- parallel::makeCluster(workers)
+  doParallel::registerDoParallel(cluster)
+  cluster
+}
+
+stop_replication_cluster <- function(cluster) {
+  if (!is.null(cluster)) {
+    parallel::stopCluster(cluster)
+  }
+  invisible(NULL)
+}
+
 #' @title Data Generating Process (DGP)
 #'
 #' @description
@@ -217,56 +245,56 @@ se_decomp_prop_sim <- function(
   list(mcb = as.numeric(mcb), dsc = as.numeric(dsc), unc = as.numeric(unc), varsigma = as.numeric(varsigma))
 }
 
-# sets parameters for quantile simulation
-parameters_simset_q <- function(s_,k_){
-  if(s_==1){
+# Sets parameters for the quantile simulation.
+parameters_simset_q <- function(s_, k_, alpha_) {
+  stopifnot(
+    length(s_) == 1L,
+    s_ %in% 1:4,
+    length(k_) == 1L,
+    length(alpha_) == 1L,
+    alpha_ > 0,
+    alpha_ < 1
+  )
+  z_alpha <- qnorm(alpha_)
+
+  if (s_ == 1) {
     # para 0<dsc1=dsc2 & mcb1=mcb2 = j
     gamma_ = c(1/4, 1/4, 1/4, 0)
     beta_ = c(rep(.25, 4))
-    delta_ = c(0, k_/2+1/4, 0, k_/2+1/4, 0)
-    xi_ = c(0, 0, k_/2+1/4, k_/2+1/4, 0)
+    delta_ = c((sqrt(16/15) - 1) * z_alpha, k_/2 + 1/4, 0, k_/2 + 1/4, 0)
+    xi_ = c((sqrt(16/15) - 1) * z_alpha, 0, k_/2 + 1/4, k_/2 + 1/4, 0)
     
     expression_mcb <- expression({bar(MCB)[1](italic(k)) == bar(MCB)[2](italic(k))})
-    expression_dsc = expression({bar(DSC)[1] == bar(DSC)[2]} > 0)
-    
-    
-    
+    expression_dsc = expression(0 < {bar(DSC)[1] == bar(DSC)[2]})
   }
-  if(s_==2){
+  if (s_ == 2) {
     # para 0<dsc1=dsc2 & 0=mcb1 and mcb2 = j
     gamma_ = c(1/4, 1/4, 1/4, 0)
     beta_ = c(rep(.25, 4))
-    delta_ = c(0, 1/4, 0, 1/4, 0)
-    xi_ = c(0, 0, k_/2+1/4, k_/2+1/4, 0)
-    
-    expression_mcb = expression({{bar(MCB)[1](italic(k)) == 0} ~~ plain(and) ~~bar(MCB)[2](italic(k))})     
-    expression_dsc = expression({bar(DSC)[1] == bar(DSC)[2]} > 0)
-    
+    delta_ = c((sqrt(16/15) - 1) * z_alpha, 1/4, 0, 1/4, 0)
+    xi_ = c((sqrt(16/15) - 1) * z_alpha, 0, k_/2 + 1/4, k_/2 + 1/4, 0)
+
+    expression_mcb = expression({{bar(MCB)[1] == 0} ~~ plain(and) ~~bar(MCB)[2](italic(k))})
+    expression_dsc = expression(0 < {bar(DSC)[1] == bar(DSC)[2]})
   }
-  if(s_==3){
+  if (s_ == 3) {
     # para dsc1=dsc2 = j & 0 < mcb1 = mcb2 
     gamma_ = c(0, 0, 0, k_)
     beta_ = c(rep(0.25, 4))
-    delta_ = c(0, k_/2+1/4, 0, 0, k_/2+1/4) 
-    xi_ = c(0, 0, k_/2 + 1/4, 0, k_/2 + 1/4)
-    
-    expression_mcb = expression({bar(MCB)[1] == bar(MCB)[2]} > 0)
+    delta_ = c((sqrt(1 + 8*k_^2/15) - 1) * z_alpha, k_/2 + 1/4, 0, 0, k_/2 + 1/4)
+    xi_ = c((sqrt(1 + 8*k_^2/15) - 1) * z_alpha, 0, k_/2 + 1/4, 0, k_/2 + 1/4)
+
+    expression_mcb = expression(0 < {bar(MCB)[1](italic(k)) == bar(MCB)[2](italic(k))})
     expression_dsc = expression({bar(DSC)[1](italic(k)) == bar(DSC)[2](italic(k))})
-    
-    
   }
-  if(s_==4){
+  if (s_ == 4) {
     # para dsc1=0 and dsc2=j & 0< mcb1=mcb2
     gamma_ = c(0, 0, 0, k_)
     beta_=c(rep(0.25,4))
     delta_=c(1/2, 1/4, 0, 1/4, 0)
     xi_ = c(0, 0, k_/2 + 1/4, 0, k_/2 + 1/4)
-    
-    # here mcb1 is only approx equal with mcb2 or???
-    
-    expression_mcb = expression({bar(MCB)[1]  %~~% bar(MCB)[2] > 0})
+    expression_mcb = expression(0 < {bar(MCB)[1](italic(k)) == bar(MCB)[2](italic(k))})
     expression_dsc = expression({{bar(DSC)[1] == 0} ~~ plain(and) ~~bar(DSC)[2](italic(k))})     
-    
   }
   
   return(
@@ -389,7 +417,7 @@ getxi0 <- function(K, ALPHA, init_width = 1, max_iter = 60) {
   stopifnot(is.numeric(K), length(K) == 1L,
             is.numeric(ALPHA), length(ALPHA) == 1L)
   
-  param <- parameters_simset_q(s_ = 4, k_ = K)
+  param <- parameters_simset_q(s_ = 4, k_ = K, alpha_ = ALPHA)
   
   solve_xi0_mcb(
     alpha = ALPHA,

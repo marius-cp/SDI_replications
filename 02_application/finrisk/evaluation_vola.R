@@ -1,5 +1,12 @@
 rm(list = ls())
-setwd(dirname(rstudioapi::getSourceEditorContext()$path))
+if (!interactive()) grDevices::pdf(NULL)
+script_arg <- grep("^--file=", commandArgs(trailingOnly = FALSE), value = TRUE)
+if (length(script_arg) == 1L) {
+  setwd(dirname(normalizePath(sub("^--file=", "", script_arg))))
+} else if (requireNamespace("rstudioapi", quietly = TRUE) && rstudioapi::isAvailable()) {
+  setwd(dirname(rstudioapi::getSourceEditorContext()$path))
+}
+rm(script_arg)
 library(lubridate)
 library(tidyverse)
 library(sandwich)
@@ -12,7 +19,6 @@ library(gtable)
 library(ggtext)
 library(gridExtra)
 library(grid)
-devtools::install_github("marius-cp/SDI")
 library(SDI)
 source("../../00_functions/funs_plots.R")
 set.seed(123)
@@ -331,7 +337,7 @@ sdi <- SDI(
   
 )
 
-tibble(
+table_1_upper_df <- tibble(
   model = c("GARCH", "HAR"),
   MZpval = c(
     sdi$mcbnulltest_X1$mz_pval,
@@ -345,12 +351,31 @@ tibble(
       sdi$asyvardm$dec_2
     )
   ) %>% 
-  mutate(across(where(is.numeric), ~ round(., 3))) %>% 
+  mutate(
+    across(where(is.numeric), ~ round(., 3)),
+    model = factor(model, levels = c("HAR", "GARCH"))
+  ) %>%
+  arrange(model)
+
+table_1_upper_latex <-
+  table_1_upper_df %>%
   kbl(
-    ., 
     format = "latex",
-    booktabs = T, escape = T
-  ) 
+    booktabs = TRUE,
+    escape = FALSE,
+    digits = 3,
+    align = "lrrrrr",
+    col.names = c("Model", "MZ $p$-value", "Score", "MCB", "DSC", "UNC")
+  )
+
+table_1_upper_latex
+
+dir.create("tables", showWarnings = FALSE)
+writeLines(
+  as.character(table_1_upper_latex),
+  con = "tables/table_1_upper_variance.tex",
+  useBytes = TRUE
+)
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # save ----
@@ -393,10 +418,12 @@ final_plot
 w<-14
 h <- 13
 ggsave("plots/appl_vola_emini_comb.pdf", width = w, height = h,  device = cairo_pdf)
-ggsave(
-  "/Users/mp/Library/CloudStorage/Dropbox/Apps/Overleaf/Statistical Inference for Score Decompositions/fig/appl_vola_emini_comb.pdf",
-  width = w, height = h,
-  device = cairo_pdf
-)
+
+# Deliberately disabled: paper-folder copies must be made manually.
+# ggsave(
+#   "/path/to/Overleaf/fig/appl_vola_emini_comb.pdf",
+#   width = w, height = h,
+#   device = cairo_pdf
+# )
 # sometimes problems by saving pdf, think it is due to phantom(0) for ggplot alignment in matrix
 # running dev.off() and saving again helps

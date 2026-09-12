@@ -1,7 +1,15 @@
 rm(list = ls())
-setwd(dirname(rstudioapi::getSourceEditorContext()$path))
+if (!interactive()) grDevices::pdf(NULL)
+script_arg <- grep("^--file=", commandArgs(trailingOnly = FALSE), value = TRUE)
+if (length(script_arg) == 1L) {
+  setwd(dirname(normalizePath(sub("^--file=", "", script_arg))))
+} else if (requireNamespace("rstudioapi", quietly = TRUE) && rstudioapi::isAvailable()) {
+  setwd(dirname(rstudioapi::getSourceEditorContext()$path))
+}
+rm(script_arg)
 library(tidyverse)
 library(SDI)
+library(ggh4x)
 library(patchwork)
 library(doParallel)
 source("../00_functions/funs_simulation.R")
@@ -30,8 +38,7 @@ lt_map <- c(MCB1 = "solid", DSC1 = "solid", MCB2 = "dotted", DSC2 = "dotted")
 # True Mean ----
 K <- seq(0.0,.5, length.out=11)
 core.max <- 1
-cl <- makeCluster(min(parallel::detectCores() - 1, core.max))
-registerDoParallel(cl)
+cl <- start_replication_cluster(core.max)
 TT <- 500 
 MCreps <- 1
 t0 <- Sys.time()
@@ -122,7 +129,7 @@ MCsim <- foreach(
 }
 t1 <- Sys.time()
 t1-t0
-stopCluster(cl)
+stop_replication_cluster(cl)
 
 
 dat <- do.call(rbind, MCsim)
@@ -247,21 +254,28 @@ ggplot(out_long_true_dsc, aes(x = k, y = value, color = series, linetype = serie
   ylab("Population value")
 
 ggsave("plots/m_true.pdf", height=9, width=10)
-ggsave("/Users/mp/Library/CloudStorage/Dropbox/Apps/Overleaf/Statistical Inference for Score Decompositions/fig/m_true.pdf", height=9, width=10)
+
+# Deliberately disabled: paper-folder copies must be made manually.
+# ggsave("/path/to/Overleaf/fig/m_true.pdf", height = 9, width = 10)
 
 
 
 
 # True Quantile ----
 K <- seq(0.0,1, length.out=21)
-core.max <- 5
-cl <- makeCluster(min(parallel::detectCores() - 1, core.max))
-registerDoParallel(cl)
 TT <- 100000
 ALPHA <- c(0.01,0.05,0.1,0.25,.5)
 MCreps <- 8
-t0 <- Sys.time()
-compare <- foreach(
+recompute_true_components <- identical(
+  tolower(Sys.getenv("SDI_RECOMPUTE_TRUE_COMPONENTS", unset = "false")),
+  "true"
+)
+
+if (recompute_true_components) {
+  core.max <- 5
+  cl <- start_replication_cluster(core.max)
+  t0 <- Sys.time()
+  compare <- foreach(
   al = 1:length(ALPHA),
   #.errorhandling = "pass",
   .packages = c("dplyr", "tibble", "tidyr", "SDI", "purrr")
@@ -271,7 +285,7 @@ compare <- foreach(
   out_tt <- NULL
   alpha <- ALPHA[al]
   for(tt in TT){ # we can use large samples here to double check if true MCB calc matchs the emprical value
-    # set SE loss and respective identification function
+    # set loss and respective identification function
     scoreingfunction = function(x,y, alpha) (1 * (y < x) - alpha) * (x - y)
     identificationfunction = function(x,y, alpha) (1 * (y < x) - alpha)
     
@@ -280,7 +294,7 @@ compare <- foreach(
     for(k_ in K){
       for (s_ in seq(1,4)) {
         #set.seed(i_MC)
-        param <- parameters_simset_q(s_=s_, k_=k_)
+        param <- parameters_simset_q(s_=s_, k_=k_, alpha_ = alpha)
         
         # update xi0 if we are in DGP 4
         ifelse(
@@ -423,14 +437,15 @@ compare <- foreach(
     out_tt <- rbind(out_tt,out_ks)
   }# close loop over sample size T
   out_tt
-}# close loop over alpha
-t1 <- Sys.time()
-t1-t0
-stopCluster(cl)
-dat <- do.call(rbind, compare)
-saveRDS(dat,"data/sim_q_compare.rds") 
+  } # close loop over alpha
+  t1 <- Sys.time()
+  print(t1 - t0)
+  stop_replication_cluster(cl)
+  dat <- do.call(rbind, compare)
+  saveRDS(dat, "data/sim_q_compare.rds")
+}
 
-out_tt <-readRDS("data/sim_q_compare.rds")
+out_tt <- readRDS("data/sim_q_compare.rds")
 
 ## plot ----
 out_long_true <-
@@ -500,11 +515,13 @@ ggplot(out_long_true, aes(x = k, y = value, color = series, linetype = series)) 
   )+
   ylab("Population value")
 ggsave("plots/q_true.pdf", height = 11, width = 11)
-ggsave(
-  "/Users/mp/Library/CloudStorage/Dropbox/Apps/Overleaf/Statistical Inference for Score Decompositions/fig/q_true.pdf", 
-  height=11, 
-  width=11
-  )
+
+# Deliberately disabled: paper-folder copies must be made manually.
+# ggsave(
+#   "/path/to/Overleaf/fig/q_true.pdf",
+#   height = 11,
+#   width = 11
+# )
 
 
 out_tt %>% 
@@ -589,8 +606,10 @@ readRDS("data/sim_q_compare.rds") %>%
   )+
   xlab(expression(italic(k))) 
 ggsave("plots/q_xi0_choice.pdf", height = 2.5, width = 10)
-ggsave(
-  "/Users/mp/Library/CloudStorage/Dropbox/Apps/Overleaf/Statistical Inference for Score Decompositions/fig/q_xi0_choice.pdf", 
-  height = 2.5, width = 10
-)
 
+# Deliberately disabled: paper-folder copies must be made manually.
+# ggsave(
+#   "/path/to/Overleaf/fig/q_xi0_choice.pdf",
+#   height = 2.5,
+#   width = 10
+# )

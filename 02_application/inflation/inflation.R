@@ -1,14 +1,20 @@
 rm(list = ls())
-setwd(dirname(rstudioapi::getSourceEditorContext()$path))
+if (!interactive()) grDevices::pdf(NULL)
+script_arg <- grep("^--file=", commandArgs(trailingOnly = FALSE), value = TRUE)
+if (length(script_arg) == 1L) {
+  setwd(dirname(normalizePath(sub("^--file=", "", script_arg))))
+} else if (requireNamespace("rstudioapi", quietly = TRUE) && rstudioapi::isAvailable()) {
+  setwd(dirname(rstudioapi::getSourceEditorContext()$path))
+}
+rm(script_arg)
 library(lubridate)
 library(tidyverse)
 library(kableExtra)
 library(sandwich)
 library(patchwork)
-devtools::install_github("marius-cp/SDI")
 source("../../00_functions/funs_plots.R")
 library(SDI)
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # load data ----
 dat <- readRDS("./murphy_replication/inflation_mean.rds")
 
@@ -19,7 +25,7 @@ dat <-
         )
 dat$yq <- zoo::as.yearqtr(dat$stemp_rlz)
 
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # TS plot ----
 dat %>% 
   rename(
@@ -48,11 +54,13 @@ dat %>%
         format = "%YQ%q"
         )
 ggsave("plots/appl_inflation_timeseries.pdf", width = 7, height = 2.5,  device = cairo_pdf)
-ggsave(
-  "/Users/mp/Library/CloudStorage/Dropbox/Apps/Overleaf/Statistical Inference for Score Decompositions/fig/appl_inflation_timeseries.pdf", 
-  width = 7, height = 2.5,  
-  device = cairo_pdf
-)
+
+# Deliberately disabled: paper-folder copies must be made manually.
+# ggsave(
+#   "/path/to/Overleaf/fig/appl_inflation_timeseries.pdf",
+#   width = 7, height = 2.5,
+#   device = cairo_pdf
+# )
 
 lm(dat$rlz ~dat$spf) %>% summary
 lm(dat$rlz ~dat$michigan) %>% summary
@@ -88,6 +96,7 @@ vars <- asy_var_dm(
   )$asy_vars 
 vars
 pvals <- get_pval(dt = vars, tt=nrow(dat))
+
 
 # UIIU
 sdi <- SDI(
@@ -332,10 +341,10 @@ free(comps, "label")  | (
   ) + 
   plot_layout(widths = c(1,.5))
 ggsave("plots/appl_infl.pdf", width = w, height = h,  device = cairo_pdf)
-ggsave(
-  "/Users/mp/Library/CloudStorage/Dropbox/Apps/Overleaf/Statistical Inference for Score Decompositions/fig/appl_infl.pdf", 
-  width = w, height = h,  
-  device = cairo_pdf
-)
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
+# Deliberately disabled: paper-folder copies must be made manually.
+# ggsave(
+#   "/path/to/Overleaf/fig/appl_infl.pdf",
+#   width = w, height = h,
+#   device = cairo_pdf
+# )

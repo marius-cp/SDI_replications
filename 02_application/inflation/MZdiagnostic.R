@@ -1,5 +1,12 @@
 rm(list = ls())
-setwd(dirname(rstudioapi::getSourceEditorContext()$path))
+if (!interactive()) grDevices::pdf(NULL)
+script_arg <- grep("^--file=", commandArgs(trailingOnly = FALSE), value = TRUE)
+if (length(script_arg) == 1L) {
+  setwd(dirname(normalizePath(sub("^--file=", "", script_arg))))
+} else if (requireNamespace("rstudioapi", quietly = TRUE) && rstudioapi::isAvailable()) {
+  setwd(dirname(rstudioapi::getSourceEditorContext()$path))
+}
+rm(script_arg)
 library(lubridate)
 library(tidyverse)
 library(sandwich)
@@ -12,7 +19,6 @@ library(gtable)
 library(ggtext)
 library(gridExtra)
 library(grid)
-devtools::install_github("marius-cp/SDI")
 library(SDI)
 source("../../00_functions/funs_plots.R")
 set.seed(123)
@@ -79,11 +85,11 @@ seplot
 w <- 8
 h <- 4
 ggsave("plots/MZdiagnostics_inflation.pdf", width = w, height = h,  device = cairo_pdf)
-ggsave(
-  "/Users/mp/Library/CloudStorage/Dropbox/Apps/Overleaf/Statistical Inference for Score Decompositions/fig/MZdiagnostics_inflation.pdf",
-  width = w, height = h,
-  device = cairo_pdf
-)
 
-
+# Deliberately disabled: paper-folder copies must be made manually.
+# ggsave(
+#   "/path/to/Overleaf/fig/MZdiagnostics_inflation.pdf",
+#   width = w, height = h,
+#   device = cairo_pdf
+# )
 

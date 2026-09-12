@@ -1,5 +1,12 @@
 rm(list = ls())
-setwd(dirname(rstudioapi::getSourceEditorContext()$path))
+if (!interactive()) grDevices::pdf(NULL)
+script_arg <- grep("^--file=", commandArgs(trailingOnly = FALSE), value = TRUE)
+if (length(script_arg) == 1L) {
+  setwd(dirname(normalizePath(sub("^--file=", "", script_arg))))
+} else if (requireNamespace("rstudioapi", quietly = TRUE) && rstudioapi::isAvailable()) {
+  setwd(dirname(rstudioapi::getSourceEditorContext()$path))
+}
+rm(script_arg)
 library(lubridate)
 library(tidyverse)
 library(sandwich)
@@ -12,7 +19,6 @@ library(gtable)
 library(ggtext)
 library(gridExtra)
 library(grid)
-devtools::install_github("marius-cp/SDI")
 library(SDI)
 source("../../00_functions/funs_plots.R")
 set.seed(123)
@@ -153,11 +159,13 @@ final_plot
 w <- 12
 h <- 8
 ggsave("plots/MZdiagnostics_vola.pdf", width = w, height = h,  device = cairo_pdf)
-ggsave(
-  "/Users/mp/Library/CloudStorage/Dropbox/Apps/Overleaf/Statistical Inference for Score Decompositions/fig/MZdiagnostics_vola.pdf",
-  width = w, height = h,
-  device = cairo_pdf
-)
+
+# Deliberately disabled: paper-folder copies must be made manually.
+# ggsave(
+#   "/path/to/Overleaf/fig/MZdiagnostics_vola.pdf",
+#   width = w, height = h,
+#   device = cairo_pdf
+# )
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -210,6 +218,37 @@ ggplot(pdat1, aes(x = value, y = genres)) +
   xlab("Forecast")
 p1
 
+# y-axis break
+shift <- .8
+p1 <-
+  ggplot(
+    pdat1 %>% mutate(genresmod = ifelse(genres==0.99,0.99-shift, genres)),
+    aes(x = value, y = genres)) +
+  geom_point(mapping=aes(x = value, y = genresmod),alpha = 0.25, color="gray") +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  facet_grid(. ~ model, scales = "free_x") +
+  geom_smooth(method="loess", fill="blue", alpha=.25)+
+  #scale_x_log10()+
+  #coord_cartesian(ylim=c(-.125,1-shift))+
+  theme_bw()+
+  ylab("residual")+
+  xlab("forecast")+
+  theme_bw()+
+  themediagplot+
+  ylab("Generalized Residual") +
+  xlab("Forecast")+
+  scale_y_continuous(
+    breaks = c(-.1, -0.05, 0, 0.05, .1, .15,.2),
+    labels = c("-0.1", "-0.05", "0", "0.05",
+               "<span style='color:red;'>//</span>",
+               "0.9", "1")
+  ) +
+  theme(
+    axis.text.y = ggtext::element_markdown()
+  )+
+  geom_abline(intercept = .1, slope = 0, color ="red", linetype="dotted")
+
+p1
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 ## 5% ----
 fcasts5 <- readRDS("data/emini_fcasts_VaR_5.rds") 
@@ -259,6 +298,35 @@ p5 <-
   xlab("Forecast")
 p5
 
+# y-axis break
+shift <- .5
+p5 <-
+ggplot(
+  pdat5 %>% mutate(genresmod = ifelse(genres==0.95,0.95-shift, genres)),
+  aes(x = value, y = genres)) +
+  geom_point(mapping=aes(x = value, y = genresmod),alpha = 0.25, color="gray") +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  facet_grid(. ~ model, scales = "free_x") +
+  geom_smooth(method="loess", fill="blue", alpha=.25)+
+  #scale_x_log10()+
+  coord_cartesian(ylim=c(-.125,1-shift))+
+  theme_bw()+
+  ylab("residual")+
+  xlab("forecast")+
+  theme_bw()+
+  themediagplot+
+  ylab("Generalized Residual") +
+  xlab("Forecast")+
+  scale_y_continuous(
+    breaks = c(-.1, 0, .1, .2, .3, .4, .5),
+    labels = c("-0.1", "0", "0.1", "0.2",
+               "<span style='color:red;'>//</span>",
+               "0.9", "1")
+  ) +
+  theme(
+    axis.text.y = ggtext::element_markdown()
+  )+
+  geom_abline(intercept = .3, slope = 0, color ="red", linetype="dotted")
 
 wrapped_row1 <- wrap_elements(
   full = p1 +
@@ -278,9 +346,10 @@ final_plot
 w <- 14
 h <- 8
 ggsave("plots/MZdiagnostics_VaR.pdf", width = w, height = h,  device = cairo_pdf)
-ggsave(
-  "/Users/mp/Library/CloudStorage/Dropbox/Apps/Overleaf/Statistical Inference for Score Decompositions/fig/MZdiagnostics_VaR.pdf",
-  width = w, height = h,
-  device = cairo_pdf
-)
 
+# Deliberately disabled: paper-folder copies must be made manually.
+# ggsave(
+#   "/path/to/Overleaf/fig/MZdiagnostics_VaR.pdf",
+#   width = w, height = h,
+#   device = cairo_pdf
+# )

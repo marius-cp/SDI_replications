@@ -1,9 +1,9 @@
-## Replication Material for Simulation Study
+## Replication material for the simulation study
 
-- The simulations are performed in `sim_mean_parameterized.R` (for the mean case) and `sim_quantile_parameterized.R` (for the quantile case). The output of these scripts is stored in the `data` folder.
+- `sim_mean_parameterized.R` and `sim_quantile_parameterized.R` run the reported Monte Carlo experiments. Their outputs use stable, date-free filenames in `data`.
+- `sim_mean_plots.R` and `sim_quantile_plots.R` construct the reported rejection-rate figures from the generated result files.
+- `plot_true_components.R` constructs the population-component figures and generates `sim_q_compare.rds` when the master file requests a complete rebuild.
+- `sim_quantile_unreported.R` runs the additional finite-sample exercise discussed in the paper and writes the unreported diagnostic figure to `plots/unreported_sim.pdf`.
+- `bonferroni_dm_comparison.R` contains the supplementary Bonferroni-versus-DM comparison requested during review.
 
-- The rejection rate plots are constructed in the files `sim_mean_plots.R` and `sim_quantile_plots.R`.
-
-- The file `plot_true_components.R` constructs the figures for the true components of the score decompositions shown in the Appendix.
-
-- The file `sim_quantile_unreported.R` contains additional simulations that are not reported in the paper.
+The recommended entry point and expected run times are documented in `../REPRODUCIBILITY.md`.

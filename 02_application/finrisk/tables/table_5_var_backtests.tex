@@ -1,0 +1,26 @@
+\begin{table}
+
+\caption{\label{tab:BacktestResults}Backtesting results for $1\%$ and $5\%$ VaR forecasts. The first panel displays the $p$-values of the backtests summarized in Table~\ref{tab:BacktestTheory}. The column ``Basel'' also displays the colors of their traffic light system. The last column reports the relative frequencies of hits, i.e., how often the realizations exceed the VaR forecasts.}
+\centering
+\begin{tabular}[t]{llrlrrrrrr}
+\toprule
+\multicolumn{2}{c}{ } & \multicolumn{7}{c}{p-values backtests} & \multicolumn{1}{c}{ } \\
+\cmidrule(l{3pt}r{3pt}){3-9}
+ & Model & UC & Basel & CC & NZ & VQR & DQ & DQX & hit freq.\\
+\midrule
+\multirow{5}{*}{$1\%$-VaR} & HS & 0.137 & \cellcolor{Goldenrod!20}{\textcolor{black}{0.024}} & 0.149 & 0.124 & 0.321 & 0.002 & 0.004 & $1.3\%$\\
+ & GARCH & 0.001 & \cellcolor{Red!15}{\textcolor{black}{0.000}} & 0.002 & 0.000 & 0.006 & 0.023 & 0.016 & $1.8\%$\\
+ & GJR & 0.000 & \cellcolor{Red!15}{\textcolor{black}{0.000}} & 0.000 & 0.000 & 0.000 & 0.002 & 0.001 & $2.0\%$\\
+ & HAR & 0.000 & \cellcolor{Red!15}{\textcolor{black}{0.000}} & 0.000 & 0.000 & 0.003 & 0.000 & 0.000 & $2.3\%$\\
+ & MIDAS & 0.000 & \cellcolor{Red!15}{\textcolor{black}{0.000}} & 0.000 & 0.000 & 0.000 & 0.000 & 0.000 & $2.3\%$\\
+\addlinespace\hline\addlinespace
+
+\addlinespace
+\multirow{5}{*}{$5\%$-VaR} & HS & 0.700 & \cellcolor{ForestGreen!15}{\textcolor{black}{0.303}} & 0.006 & 0.416 & 0.013 & 0.000 & 0.000 & $5.2\%$\\
+ & GARCH & 0.266 & \cellcolor{ForestGreen!15}{\textcolor{black}{0.117}} & 0.543 & 0.140 & 0.452 & 0.066 & 0.052 & $5.4\%$\\
+ & GJR & 0.161 & \cellcolor{ForestGreen!15}{\textcolor{black}{0.069}} & 0.313 & 0.073 & 0.360 & 0.207 & 0.534 & $5.5\%$\\
+ & HAR & 0.298 & \cellcolor{ForestGreen!15}{\textcolor{black}{0.132}} & 0.588 & 0.159 & 0.518 & 0.190 & 0.132 & $5.4\%$\\
+ & MIDAS & 0.266 & \cellcolor{ForestGreen!15}{\textcolor{black}{0.117}} & 0.544 & 0.145 & 0.568 & 0.183 & 0.134 & $5.4\%$\\
+\bottomrule
+\end{tabular}
+\end{table}

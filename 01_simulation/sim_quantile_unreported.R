@@ -1,5 +1,11 @@
 rm(list = ls())
-setwd(dirname(rstudioapi::getSourceEditorContext()$path))
+script_arg <- grep("^--file=", commandArgs(trailingOnly = FALSE), value = TRUE)
+if (length(script_arg) == 1L) {
+  setwd(dirname(normalizePath(sub("^--file=", "", script_arg))))
+} else if (requireNamespace("rstudioapi", quietly = TRUE) && rstudioapi::isAvailable()) {
+  setwd(dirname(rstudioapi::getSourceEditorContext()$path))
+}
+rm(script_arg)
 library(tidyverse)
 library(SDI)
 library(patchwork)
@@ -15,8 +21,7 @@ source("../00_functions/funs_simulation.R")
 #K <- seq(0.0,.5, length.out=11)
 K <- seq(0.0,3,.1)
 core.max <- 8
-cl <- makeCluster(min(parallel::detectCores() - 1, core.max))
-registerDoParallel(cl)
+cl <- start_replication_cluster(core.max)
 TT <- 2^(9:11)
 ALPHA <- c(0.01,0.1)
 MCreps <- 2500
@@ -45,7 +50,7 @@ MCsim <- foreach(
       for(k_ in K){
         for (s_ in c(3)) {
           #set.seed(i_MC)
-          param <- parameters_simset_q(s_=s_, k_=k_)
+          param <- parameters_simset_q(s_=s_, k_=k_, alpha_ = alpha)
           
           # update xi0 if we are in DGP 4
           ifelse(
@@ -168,9 +173,9 @@ MCsim <- foreach(
 }
 t1 <- Sys.time()
 t1-t0# 4.4h,  5000 reps 
-stopCluster(cl)
+stop_replication_cluster(cl)
 dat <- do.call(rbind, MCsim)
-saveRDS(dat,"data/sim_q_parameterized_size_details.rds") 
+saveRDS(dat, "data/sim_q_parameterized_size_details.rds")
 
 # Plot size detail  -----
 dat <- readRDS("data/sim_q_parameterized_size_details.rds")
@@ -289,7 +294,7 @@ datall <-
   ) 
 colors <- c("blue", "coral", alpha("black",0.5))
 lines <- c("solid", "solid", "dotted")
-datall %>% 
+unreported_sim_plot <- datall %>%
   ggplot(aes(y = rr, x = k, color = type,linetype = type)) +
   geom_abline(slope = 0, intercept = .1, color = "gray") +
   geom_line() +
@@ -320,3 +325,10 @@ datall %>%
   scale_color_manual(    
     values = colors[-1]
   )
+
+ggsave(
+  "plots/unreported_sim.pdf",
+  plot = unreported_sim_plot,
+  width = 7,
+  height = 7
+)

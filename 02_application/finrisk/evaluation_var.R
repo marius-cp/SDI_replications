@@ -1,5 +1,12 @@
 rm(list = ls())
-setwd(dirname(rstudioapi::getSourceEditorContext()$path))
+if (!interactive()) grDevices::pdf(NULL)
+script_arg <- grep("^--file=", commandArgs(trailingOnly = FALSE), value = TRUE)
+if (length(script_arg) == 1L) {
+  setwd(dirname(normalizePath(sub("^--file=", "", script_arg))))
+} else if (requireNamespace("rstudioapi", quietly = TRUE) && rstudioapi::isAvailable()) {
+  setwd(dirname(rstudioapi::getSourceEditorContext()$path))
+}
+rm(script_arg)
 library(lubridate)
 library(tidyverse)
 library(sandwich)
@@ -13,7 +20,6 @@ library(ggtext)
 library(gridExtra)
 library(grid)
 library(knitr)
-devtools::install_github("marius-cp/SDI")
 library(SDI)
 source("../../00_functions/funs_plots.R")
 source("../../00_functions/funs_backtest.R")
@@ -237,20 +243,41 @@ backtesttab1
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 ## mot ex tab ----
-bind_cols(
-  pdatoinball1 %>%  filter(model %in% c("GARCH", "HAR", "HS")),
-  data.frame(
-    MZp =c(
-      comparison_dataframes$mcb_null[4,4],#garch
-      comparison_dataframes$mcb_null[1,1],#har
-      comparison_dataframes$mcb_null[5,5]#hs
-    ) %>% round(3)
-  )
-  ) %>% 
-  arrange(MZp) %>% 
+table_1_lower_df <-
+  pdatoinball1 %>%
+  filter(model %in% c("GARCH", "HAR", "HS")) %>%
+  mutate(
+    MZp = c(
+      HAR = comparison_dataframes$mcb_null["HAR", "HAR"],
+      GARCH = comparison_dataframes$mcb_null["GARCH", "GARCH"],
+      HS = comparison_dataframes$mcb_null["HS", "HS"]
+    )[model],
+    model = factor(model, levels = c("HAR", "GARCH", "HS"))
+  ) %>%
+  arrange(model) %>%
   select(model, MZp, s, mcb, dsc, unc) %>% 
   mutate(across(where(is.numeric), ~ round(.x, 3))) %>% 
   data.frame()
+
+table_1_lower_latex <-
+  table_1_lower_df %>%
+  kbl(
+    format = "latex",
+    booktabs = TRUE,
+    escape = FALSE,
+    digits = 3,
+    align = "lrrrrr",
+    col.names = c("Model", "MZ $p$-value", "Score", "MCB", "DSC", "UNC")
+  )
+
+table_1_lower_latex
+
+dir.create("tables", showWarnings = FALSE)
+writeLines(
+  as.character(table_1_lower_latex),
+  con = "tables/table_1_lower_var.tex",
+  useBytes = TRUE
+)
 
 # pval  DM test
 comparison_dataframes$s_pval
@@ -442,24 +469,27 @@ final_plot
 w<-14
 h <- 13
 ggsave("plots/appl_VaR_emini_comb.pdf", width = w, height = h,  device = cairo_pdf)
-ggsave(
-  "/Users/mp/Library/CloudStorage/Dropbox/Apps/Overleaf/Statistical Inference for Score Decompositions/fig/appl_VaR_emini_comb.pdf",
-  width = w, height = h,
-  device = cairo_pdf
-)
+
+# Deliberately disabled: paper-folder copies must be made manually.
+# ggsave(
+#   "/path/to/Overleaf/fig/appl_VaR_emini_comb.pdf",
+#   width = w, height = h,
+#   device = cairo_pdf
+# )
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # final table ----
 tab_df <-
   bind_rows(
-    backtesttab1 %>% mutate(ForecastType = "$1\\%$-Quantile"),
-    backtesttab5 %>% mutate(ForecastType = "$5\\%$-Quantile")
+    backtesttab1 %>% mutate(ForecastType = "$1\\%$-VaR"),
+    backtesttab5 %>% mutate(ForecastType = "$5\\%$-VaR")
   ) %>%
   select(ForecastType, model, UC, Basel, CC,NZ,  VQR, DQ,DQv, Baselc, relHits) %>% 
   mutate(across(where(is.numeric), ~ round(.x, 3))) %>% 
   mutate(
+    relHits = sprintf("$%.1f\\%%$", relHits),
     Basel = cell_spec(
-      Basel,
+      sprintf("%.3f", Basel),
       format = "latex",
       color  = "black",
       bold   = FALSE,
@@ -491,7 +521,7 @@ tab_df <- tab_df %>%
   ) %>%
   ungroup()
 
-colnames(tab_df) <- c("", "Model $i$", "UC", "Basel", "CC", "NZ" , "VQR", "DQ", "DQX", "relative")
+colnames(tab_df) <- c("", "Model", "UC", "Basel", "CC", "NZ", "VQR", "DQ", "DQX", "hit freq.")
 
 tab_latex <-
   tab_df %>%
@@ -500,13 +530,22 @@ tab_latex <-
     booktabs=TRUE, 
     escape=FALSE, 
     digits=3,
-    caption="Backtest results."
+    align="llrlrrrrrr",
+    caption=paste0(
+      "Backtesting results for $1\\%$ and $5\\%$ VaR forecasts. ",
+      "The first panel displays the $p$-values of the backtests summarized ",
+      "in Table~\\ref{tab:BacktestTheory}. The column ``Basel'' also ",
+      "displays the colors of their traffic light system. The last column ",
+      "reports the relative frequencies of hits, i.e., how often the ",
+      "realizations exceed the VaR forecasts."
+    ),
+    label="BacktestResults"
     ) %>%
   add_header_above(
     c(
       " " = 2, 
       "p-values backtests" = 7, 
-      "hit frequencies" = 1
+      " " = 1
       ),
     escape = FALSE
     ) %>%
@@ -517,3 +556,11 @@ tab_latex <-
 
 tab_latex
 
+# Save Table 5 inside the replication repository. Copies to the paper project
+# remain a deliberate manual step.
+dir.create("tables", showWarnings = FALSE)
+writeLines(
+  as.character(tab_latex),
+  con = "tables/table_5_var_backtests.tex",
+  useBytes = TRUE
+)

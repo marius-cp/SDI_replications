@@ -7,7 +7,11 @@
 
 - `MZdiagnostic.R`  
   Produces the Mincer--Zarnowitz regression diagnostic plots shown in the Appendix.
+
+- `cross_calibration_decomposition.R` contains the supplementary cross-calibration decomposition considered during revision.
+
+The analysis scripts do not install packages and do not write to Dropbox or Overleaf. The recommended run order is documented in `../../REPRODUCIBILITY.md`.
   
 ## Literature
 
-- Werner Ehm, Tilmann Gneiting, Alexander Jordan, Fabian Krüger, Of Quantiles and Expectiles: Consistent Scoring Functions, Choquet Representations and Forecast Rankings, Journal of the Royal Statistical Society Series B: Statistical Methodology, Volume 78, Issue 3, June 2016, Pages 505–562, https://doi.org/10.1111/rssb.12154. 
+- Werner Ehm, Tilmann Gneiting, Alexander Jordan, Fabian Krüger, Of Quantiles and Expectiles: Consistent Scoring Functions, Choquet Representations and Forecast Rankings, Journal of the Royal Statistical Society Series B: Statistical Methodology, Volume 78, Issue 3, June 2016, Pages 505–562, https://doi.org/10.1111/rssb.12154.

@@ -1,5 +1,11 @@
 rm(list = ls())
-setwd(dirname(rstudioapi::getSourceEditorContext()$path))
+script_arg <- grep("^--file=", commandArgs(trailingOnly = FALSE), value = TRUE)
+if (length(script_arg) == 1L) {
+  setwd(dirname(normalizePath(sub("^--file=", "", script_arg))))
+} else if (requireNamespace("rstudioapi", quietly = TRUE) && rstudioapi::isAvailable()) {
+  setwd(dirname(rstudioapi::getSourceEditorContext()$path))
+}
+rm(script_arg)
 library(tidyverse)
 library(SDI)
 library(patchwork)
@@ -10,8 +16,7 @@ source("../00_functions/funs_simulation.R")
 #K <- seq(0.0,.5, length.out=11)
 K <- seq(0.0,1, length.out=21)
 core.max <- 8
-cl <- makeCluster(min(parallel::detectCores() - 1, core.max))
-registerDoParallel(cl)
+cl <- start_replication_cluster(core.max)
 TT <- 500
 ALPHA <- c(0.01,0.05,0.1,0.25,.5)
 MCreps <- 5000
@@ -40,7 +45,7 @@ MCsim <- foreach(
       for(k_ in K){
         for (s_ in seq(1,4)) {
           #set.seed(i_MC)
-          param <- parameters_simset_q(s_=s_, k_=k_)
+          param <- parameters_simset_q(s_=s_, k_=k_, alpha_=alpha)
           
           # update xi0 if we are in DGP 4
           ifelse(
@@ -162,18 +167,16 @@ MCsim <- foreach(
   out_tt
 }
 t1 <- Sys.time()
-t1-t0# 4.4h,  5000 reps 
-stopCluster(cl)
+t1-t0
+stop_replication_cluster(cl)
 dat <- do.call(rbind, MCsim)
-saveRDS(dat,"data/sim_q_parameterized.rds") 
 
 # Split large simulation output file for GitHub compatibility
 #
 # The simulation output `sim_q_parameterized.rds` contains ~21 million rows and
 # results in a file size (~300 MB) that exceeds GitHub's recommended file size
 # limits. To allow the data to be included in the repository, the file is split
-# into four smaller parts.
-dat <- readRDS("data/sim_q_parameterized.rds")
+# into four smaller parts. The combined object is intentionally not saved.
 n <- nrow(dat)
 idx <- split(seq_len(n), cut(seq_len(n), 4, labels = FALSE))
 for(i in seq_along(idx)) {

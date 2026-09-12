@@ -1,5 +1,11 @@
 rm(list = ls())
-setwd(dirname(rstudioapi::getSourceEditorContext()$path))
+script_arg <- grep("^--file=", commandArgs(trailingOnly = FALSE), value = TRUE)
+if (length(script_arg) == 1L) {
+  setwd(dirname(normalizePath(sub("^--file=", "", script_arg))))
+} else if (requireNamespace("rstudioapi", quietly = TRUE) && rstudioapi::isAvailable()) {
+  setwd(dirname(rstudioapi::getSourceEditorContext()$path))
+}
+rm(script_arg)
 library(tidyverse)
 library(SDI)
 library(patchwork)
@@ -9,8 +15,7 @@ source("../00_functions/funs_simulation.R")
 # MAIN Simulation ---- 
 K <- seq(0.0,.5, length.out=11)
 core.max <- 8
-cl <- makeCluster(min(parallel::detectCores() - 1, core.max))
-registerDoParallel(cl)
+cl <- start_replication_cluster(core.max)
 TT <- 500 
 MCreps <- 5000
 t0 <- Sys.time()
@@ -164,9 +169,8 @@ MCsim <- foreach(
 }
 t1 <- Sys.time()
 t1-t0# 6h, 5000 reps
-stopCluster(cl)
+stop_replication_cluster(cl)
 
 
 dat <- do.call(rbind, MCsim)
-saveRDS(dat,"data/sim_m_parameterized.rds") 
-
+saveRDS(dat, "data/sim_m_parameterized.rds")

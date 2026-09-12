@@ -1,5 +1,12 @@
 rm(list = ls())
-setwd(dirname(rstudioapi::getSourceEditorContext()$path))
+if (!interactive()) grDevices::pdf(NULL)
+script_arg <- grep("^--file=", commandArgs(trailingOnly = FALSE), value = TRUE)
+if (length(script_arg) == 1L) {
+  setwd(dirname(normalizePath(sub("^--file=", "", script_arg))))
+} else if (requireNamespace("rstudioapi", quietly = TRUE) && rstudioapi::isAvailable()) {
+  setwd(dirname(rstudioapi::getSourceEditorContext()$path))
+}
+rm(script_arg)
 library(tidyverse)
 library(SDI)
 library(patchwork)
@@ -8,9 +15,9 @@ source("../00_functions/funs_simulation.R")
 lsize <- 1.05
 
 # Main Text Simulation Figure -----
-# dat <- readRDS("data/sim_q_parameterized.rds")
 files <- paste0("data/sim_q_parameterized_part", 1:4, ".rds")
 dat <- bind_rows(lapply(files, readRDS))
+
 
 # Rejection rates  MCB test
 rrmcb <- 
@@ -157,5 +164,6 @@ datall %>%
     values = colors
   )
 ggsave("plots/sim_q.pdf", height=10, width=10)
-ggsave("/Users/mp/Library/CloudStorage/Dropbox/Apps/Overleaf/Statistical Inference for Score Decompositions/fig/sim_q.pdf", height=10, width=10)
 
+# Deliberately disabled: paper-folder copies must be made manually.
+# ggsave("/path/to/Overleaf/fig/sim_q.pdf", height = 10, width = 10)
